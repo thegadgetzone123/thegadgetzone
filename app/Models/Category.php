@@ -9,7 +9,7 @@ class Category extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name'];
+    protected $fillable = ['name' , 'slug'];
 
     /**
      * Get the posts for the category.
@@ -17,11 +17,6 @@ class Category extends Model
     public function posts()
     {
         return $this->belongsToMany(Post::class,'category_post');
-    }
-
-    public function exercises()
-    {
-        return $this->belongsToMany(Exercises::class,'category_exercise');
     }
 
 }

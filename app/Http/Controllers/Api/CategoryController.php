@@ -20,22 +20,23 @@ class CategoryController extends Controller
         if (!in_array($orderDirection, ['asc', 'desc'])) {
             $orderDirection = 'desc';
         }
-        $categories = Category::
-            when(request('search_id'), function ($query) {
+
+        $categories = Category::withCount('posts') // Relación con el modelo Post
+            ->when(request('search_id'), function ($query) {
                 $query->where('id', request('search_id'));
             })
             ->when(request('search_title'), function ($query) {
-                $query->where('name', 'like', '%'.request('search_title').'%');
+                $query->where('name', 'like', '%' . request('search_title') . '%');
             })
             ->when(request('search_global'), function ($query) {
-                $query->where(function($q) {
+                $query->where(function ($q) {
                     $q->where('id', request('search_global'))
-                        ->orWhere('name', 'like', '%'.request('search_global').'%');
-
+                        ->orWhere('name', 'like', '%' . request('search_global') . '%');
                 });
             })
             ->orderBy($orderColumn, $orderDirection)
             ->paginate(50);
+
         return CategoryResource::collection($categories);
     }
 
@@ -50,10 +51,12 @@ class CategoryController extends Controller
     public function show(Category $category)
     {
         $this->authorize('category-edit');
-        return new CategoryResource($category);
+
+        // Incluye las publicaciones asociadas en la respuesta
+        return new CategoryResource($category->load('posts'));
     }
 
-    public function update(Category $category, StoreCategoryRequest $request)
+    public function update(StoreCategoryRequest $request, Category $category)
     {
         $this->authorize('category-edit');
         $category->update($request->validated());
@@ -61,8 +64,14 @@ class CategoryController extends Controller
         return new CategoryResource($category);
     }
 
-    public function destroy(Category $category) {
+    public function destroy(Category $category)
+    {
         $this->authorize('category-delete');
+
+        if ($category->posts()->count() > 0) {
+            return response()->json(['error' => 'No puedes eliminar una categoría que tiene publicaciones asociadas.'], 400);
+        }
+
         $category->delete();
 
         return response()->noContent();
@@ -70,6 +79,7 @@ class CategoryController extends Controller
 
     public function getList()
     {
-        return CategoryResource::collection(Category::all());
+        // Lista básica de categorías sin paginación
+        return CategoryResource::collection(Category::with('posts')->get());
     }
 }
